@@ -121,7 +121,7 @@ export const EditTool = Tool.define("edit", {
       if (params.oldString === undefined) {
         throw new Error(`oldString is required for mode '${mode}'`)
       }
-      if (params.newString === undefined && mode !== "delete") {
+      if (params.newString === undefined) {
         throw new Error(`newString is required for mode '${mode}'`)
       }
       if (mode === "replace" && params.oldString === params.newString) {
