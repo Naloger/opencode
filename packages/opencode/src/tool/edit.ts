@@ -37,10 +37,10 @@ function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
 export const EditTool = Tool.define("edit", {
   description: DESCRIPTION,
   parameters: z.object({
-    filePath: z.string().describe("The absolute path to the file to modify"),
-    oldString: z.string().describe("The text to replace"),
-    newString: z.string().describe("The text to replace it with (must be different from oldString)"),
-    replaceAll: z.boolean().optional().describe("Replace all occurrences of oldString (default false)"),
+    filePath: z.string().describe("arg:filePath absolute path, example:C:\\\\repo\\\\app\\\\src\\\\main.ts"),
+    oldString: z.string().describe("arg:oldString exact existing text, example:const port = 3000\\n"),
+    newString: z.string().describe("arg:newString replacement text (different from oldString), example:const port = 3001\\n"),
+    replaceAll: z.boolean().optional().describe("arg:replaceAll optional boolean, example:false (default false)"),
   }),
   async execute(params, ctx) {
     if (!params.filePath) {
