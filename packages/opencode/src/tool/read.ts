@@ -5,8 +5,9 @@ import { open } from "fs/promises"
 import * as path from "path"
 import { createInterface } from "readline"
 import { Tool } from "./tool"
-import { AppFileSystem } from "../filesystem"
-import { LSP } from "../lsp"
+import { AppFileSystem } from "@/filesystem"
+import { LSP } from "@/lsp"
+import { NamedError } from "@opencode-ai/util/error"
 import { FileTime } from "../file/time"
 import DESCRIPTION from "./read.txt"
 import { Instance } from "../project/instance"
@@ -18,6 +19,13 @@ const MAX_LINE_LENGTH = 2000
 const MAX_LINE_SUFFIX = `... (line truncated to ${MAX_LINE_LENGTH} chars)`
 const MAX_BYTES = 50 * 1024
 const MAX_BYTES_LABEL = `${MAX_BYTES / 1024} KB`
+
+const ReadError = NamedError.create(
+  "ReadToolError",
+  z.object({
+    message: z.string(),
+  }),
+)
 
 const parameters = z.object({
   filePath: z.string().describe("The absolute path to the file or directory to read"),
@@ -52,11 +60,11 @@ export const ReadTool = Tool.defineEffect(
 
       if (items.length > 0) {
         return yield* Effect.fail(
-          new Error(`File not found: ${filepath}\n\nDid you mean one of these?\n${items.join("\n")}`),
+          new ReadError({ message: `File not found: ${filepath}\n\nDid you mean one of these?\n${items.join("\n")}` }),
         )
       }
 
-      return yield* Effect.fail(new Error(`File not found: ${filepath}`))
+      return yield* Effect.fail(new ReadError({ message: `File not found: ${filepath}` }))
     })
 
     const list = Effect.fn("ReadTool.list")(function* (filepath: string) {
@@ -69,7 +77,7 @@ export const ReadTool = Tool.defineEffect(
 
           const target = yield* fs
             .stat(path.join(filepath, item.name))
-            .pipe(Effect.catch(() => Effect.succeed(undefined)))
+            .pipe(Effect.catch(() => Effect.void))
           if (target?.type === "Directory") return item.name + "/"
           return item.name
         }),
@@ -84,7 +92,7 @@ export const ReadTool = Tool.defineEffect(
 
     const run = Effect.fn("ReadTool.execute")(function* (params: z.infer<typeof parameters>, ctx: Tool.Context) {
       if (params.offset !== undefined && params.offset < 1) {
-        return yield* Effect.fail(new Error("offset must be greater than or equal to 1"))
+        return yield* Effect.fail(new ReadError({ message: "offset must be greater than or equal to 1" }))
       }
 
       let filepath = params.filePath
@@ -99,7 +107,7 @@ export const ReadTool = Tool.defineEffect(
       const stat = yield* fs.stat(filepath).pipe(
         Effect.catchIf(
           (err) => "reason" in err && err.reason._tag === "NotFound",
-          () => Effect.succeed(undefined),
+          () => Effect.void,
         ),
       )
 
@@ -173,7 +181,7 @@ export const ReadTool = Tool.defineEffect(
       }
 
       if (yield* Effect.promise(() => isBinaryFile(filepath, Number(stat.size)))) {
-        return yield* Effect.fail(new Error(`Cannot read binary file: ${filepath}`))
+        return yield* Effect.fail(new ReadError({ message: `Cannot read binary file: ${filepath}` }))
       }
 
       const file = yield* Effect.promise(() =>
@@ -181,7 +189,7 @@ export const ReadTool = Tool.defineEffect(
       )
       if (file.count < file.offset && !(file.count === 0 && file.offset === 1)) {
         return yield* Effect.fail(
-          new Error(`Offset ${file.offset} is out of range for this file (${file.count} lines)`),
+          new ReadError({ message: `Offset ${file.offset} is out of range for this file (${file.count} lines)` }),
         )
       }
 

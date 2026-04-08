@@ -66,13 +66,16 @@ export namespace Skill {
   const add = Effect.fnUntraced(function* (state: State, match: string, bus: Bus.Interface) {
     const md = yield* Effect.tryPromise({
       try: () => ConfigMarkdown.parse(match),
-      catch: (err) => err,
+      catch: (err): InstanceType<typeof NamedError.Unknown> => {
+        const message = ConfigMarkdown.FrontmatterError.isInstance(err)
+          ? err.data.message
+          : `Failed to parse skill ${match}`
+        return new NamedError.Unknown({ message })
+      },
     }).pipe(
       Effect.catch(
         Effect.fnUntraced(function* (err) {
-          const message = ConfigMarkdown.FrontmatterError.isInstance(err)
-            ? err.data.message
-            : `Failed to parse skill ${match}`
+          const message = err.message
           const { Session } = yield* Effect.promise(() => import("@/session"))
           yield* bus.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() })
           log.error("failed to load skill", { skill: match, err })
@@ -119,7 +122,8 @@ export namespace Skill {
           symlink: true,
           dot: opts?.dot,
         }),
-      catch: (error) => error,
+      catch: (error): InstanceType<typeof NamedError.Unknown> =>
+        new NamedError.Unknown({ message: error instanceof Error ? error.message : String(error) }),
     }).pipe(
       Effect.catch((error) => {
         if (!opts?.scope) return Effect.die(error)

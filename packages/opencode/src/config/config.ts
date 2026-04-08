@@ -6,12 +6,12 @@ import { Process } from "../util/process"
 import z from "zod"
 import { ModelsDev } from "../provider/models"
 import { mergeDeep, pipe, unique } from "remeda"
-import { Global } from "../global"
+import { Global } from "@/global"
 import fsNode from "fs/promises"
 import { NamedError } from "@opencode-ai/util/error"
 import { Flag } from "../flag/flag"
-import { Auth } from "../auth"
-import { Env } from "../env"
+import { Auth } from "@/auth"
+import { Env } from "@/env"
 import {
   type ParseError as JsoncParseError,
   applyEdits,
@@ -95,11 +95,22 @@ export namespace Config {
    * Pure function — no OS interaction, safe to unit test directly.
    */
   export function parseManagedPlist(json: string, source: string): Info {
-    const raw = JSON.parse(json)
+    const errors: JsoncParseError[] = []
+    const raw = parseJsonc(json, errors, { allowTrailingComma: true })
+    if (errors.length) {
+      const message = errors.map((e) => printParseErrorCode(e.error)).join(", ")
+      throw new JsonError({
+        path: source,
+        message: `Invalid managed plist JSON: ${message}`,
+      })
+    }
+    if (!isRecord(raw)) {
+      return parseConfigData(raw, source)
+    }
     for (const key of Object.keys(raw)) {
       if (PLIST_META.has(key)) delete raw[key]
     }
-    return parseConfig(JSON.stringify(raw), source)
+    return parseConfigData(raw, source)
   }
 
   /**
@@ -310,7 +321,6 @@ export namespace Config {
           ...parsed.data,
           mode: "primary" as const,
         }
-        continue
       }
     }
     return result
@@ -983,7 +993,6 @@ export namespace Config {
         .refine(
           (data) => {
             if (!data) return true
-            if (typeof data === "boolean") return true
             const serverIds = new Set(Object.values(LSPServer).map((s) => s.id))
 
             return Object.entries(data).every(([id, config]) => {
@@ -1100,6 +1109,15 @@ export namespace Config {
     return next
   }
 
+  function parseConfigData(data: unknown, source: string): Info {
+    const parsed = Info.safeParse(data)
+    if (parsed.success) return parsed.data
+    throw new InvalidError({
+      path: source,
+      issues: parsed.error.issues,
+    })
+  }
+
   function parseConfig(text: string, filepath: string): Info {
     const errors: JsoncParseError[] = []
     const data = parseJsonc(text, errors, { allowTrailingComma: true })
@@ -1125,13 +1143,7 @@ export namespace Config {
       })
     }
 
-    const parsed = Info.safeParse(data)
-    if (parsed.success) return parsed.data
-
-    throw new InvalidError({
-      path: filepath,
-      issues: parsed.error.issues,
-    })
+    return parseConfigData(data, filepath)
   }
 
   export const { JsonError, InvalidError } = ConfigPaths
@@ -1157,7 +1169,7 @@ export namespace Config {
           return yield* fs.readFileString(filepath).pipe(
             Effect.catchIf(
               (e) => e.reason._tag === "NotFound",
-              () => Effect.succeed(undefined),
+              () => Effect.void,
             ),
             Effect.orDie,
           )
@@ -1212,6 +1224,30 @@ export namespace Config {
           })
         })
 
+        const loadConfigData = Effect.fnUntraced(function* (data: unknown, options: { dir: string; source: string }) {
+          const source = options.source
+
+          const normalized = (() => {
+            if (!data || typeof data !== "object" || Array.isArray(data)) return data
+            const copy = { ...(data as Record<string, unknown>) }
+            const hadLegacy = "theme" in copy || "keybinds" in copy || "tui" in copy
+            if (!hadLegacy) return copy
+            delete copy.theme
+            delete copy.keybinds
+            delete copy.tui
+            log.warn("tui keys in opencode config are deprecated; move them to tui.json", { path: source })
+            return copy
+          })()
+
+          const parsed = Info.safeParse(normalized)
+          if (parsed.success) return parsed.data
+
+          throw new InvalidError({
+            path: source,
+            issues: parsed.error.issues,
+          })
+        })
+
         const loadFile = Effect.fnUntraced(function* (filepath: string) {
           log.info("loading", { path: filepath })
           const text = yield* readConfigFile(filepath)
@@ -1236,7 +1272,7 @@ export namespace Config {
                   if (provider && model) result.model = `${provider}/${model}`
                   result["$schema"] = "https://opencode.ai/config.json"
                   result = mergeDeep(result, rest)
-                  await fsNode.writeFile(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
+                  await Filesystem.writeJson(path.join(Global.Path.config, "config.json"), result)
                   await fsNode.unlink(legacy)
                 })
                 .catch(() => {}),
@@ -1303,7 +1339,7 @@ export namespace Config {
               const remoteConfig = wellknown.config ?? {}
               if (!remoteConfig.$schema) remoteConfig.$schema = "https://opencode.ai/config.json"
               const source = `${url}/.well-known/opencode`
-              const next = yield* loadConfig(JSON.stringify(remoteConfig), {
+              const next = yield* loadConfigData(remoteConfig, {
                 dir: path.dirname(source),
                 source,
               })
@@ -1395,7 +1431,7 @@ export namespace Config {
 
               if (Option.isSome(configOpt)) {
                 const source = `${activeOrg.account.url}/api/config`
-                const next = yield* loadConfig(JSON.stringify(configOpt.value), {
+                const next = yield* loadConfigData(configOpt.value, {
                   dir: path.dirname(source),
                   source,
                 })
@@ -1407,7 +1443,7 @@ export namespace Config {
             }).pipe(
               Effect.catch((err) => {
                 log.debug("failed to fetch remote account config", {
-                  error: err instanceof Error ? err.message : String(err),
+                  error: err.message,
                 })
                 return Effect.void
               }),
@@ -1434,7 +1470,16 @@ export namespace Config {
           }
 
           if (Flag.OPENCODE_PERMISSION) {
-            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.OPENCODE_PERMISSION))
+            const errors: JsoncParseError[] = []
+            const parsed = parseJsonc(Flag.OPENCODE_PERMISSION, errors, { allowTrailingComma: true })
+            if (errors.length) {
+              const message = errors.map((e) => printParseErrorCode(e.error)).join(", ")
+              throw new JsonError({
+                path: "OPENCODE_PERMISSION",
+                message: `Invalid permission JSON: ${message}`,
+              })
+            }
+            result.permission = mergeDeep(result.permission ?? {}, Permission.parse(parsed))
           }
 
           if (result.tools) {
@@ -1501,9 +1546,9 @@ export namespace Config {
           const dir = yield* InstanceState.directory
           const file = path.join(dir, "config.json")
           const existing = yield* loadFile(file)
-          yield* fs
-            .writeFileString(file, JSON.stringify(mergeDeep(writable(existing), writable(config)), null, 2))
-            .pipe(Effect.orDie)
+          yield* Effect.promise(() => Filesystem.writeJson(file, mergeDeep(writable(existing), writable(config)))).pipe(
+            Effect.orDie,
+          )
           yield* Effect.promise(() => Instance.dispose())
         })
 
@@ -1533,7 +1578,7 @@ export namespace Config {
           if (!file.endsWith(".jsonc")) {
             const existing = parseConfig(before, file)
             const merged = mergeDeep(writable(existing), input)
-            yield* fs.writeFileString(file, JSON.stringify(merged, null, 2)).pipe(Effect.orDie)
+            yield* Effect.promise(() => Filesystem.writeJson(file, merged)).pipe(Effect.orDie)
             next = merged
           } else {
             const updated = patchJsonc(before, input)

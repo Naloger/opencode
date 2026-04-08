@@ -2,7 +2,7 @@ import { BusEvent } from "@/bus/bus-event"
 import { Bus } from "@/bus"
 import { Session } from "."
 import { SessionID, MessageID, PartID } from "./schema"
-import { Instance } from "../project/instance"
+//import { Instance } from "../project/instance"
 import { Provider } from "../provider/provider"
 import { MessageV2 } from "./message-v2"
 import z from "zod"
@@ -97,7 +97,7 @@ export namespace SessionCompaction {
 
         const msgs = yield* session
           .messages({ sessionID: input.sessionID })
-          .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)))
+          .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.void))
         if (!msgs) return
 
         let total = 0
@@ -105,17 +105,24 @@ export namespace SessionCompaction {
         const toPrune: MessageV2.ToolPart[] = []
         let turns = 0
 
-        loop: for (let msgIndex = msgs.length - 1; msgIndex >= 0; msgIndex--) {
+        let stop = false
+        for (let msgIndex = msgs.length - 1; msgIndex >= 0 && !stop; msgIndex--) {
           const msg = msgs[msgIndex]
           if (msg.info.role === "user") turns++
           if (turns < 2) continue
-          if (msg.info.role === "assistant" && msg.info.summary) break loop
-          for (let partIndex = msg.parts.length - 1; partIndex >= 0; partIndex--) {
+          if (msg.info.role === "assistant" && msg.info.summary) {
+            stop = true
+            continue
+          }
+          for (let partIndex = msg.parts.length - 1; partIndex >= 0 && !stop; partIndex--) {
             const part = msg.parts[partIndex]
             if (part.type === "tool")
               if (part.state.status === "completed") {
                 if (PRUNE_PROTECTED_TOOLS.includes(part.tool)) continue
-                if (part.state.time.compacted) break loop
+                if (part.state.time.compacted) {
+                  stop = true
+                  continue
+                }
                 const estimate = Token.estimate(part.state.output)
                 total += estimate
                 if (total > PRUNE_PROTECT) {
@@ -402,17 +409,17 @@ When constructing the summary, try to stick to this template:
   export async function prune(input: { sessionID: SessionID }) {
     return runPromise((svc) => svc.prune(input))
   }
-
-  export const process = fn(
-    z.object({
-      parentID: MessageID.zod,
-      messages: z.custom<MessageV2.WithParts[]>(),
-      sessionID: SessionID.zod,
-      auto: z.boolean(),
-      overflow: z.boolean().optional(),
-    }),
-    (input) => runPromise((svc) => svc.process(input)),
-  )
+  //
+  // export const process = fn(
+  //   z.object({
+  //     parentID: MessageID.zod,
+  //     messages: z.custom<MessageV2.WithParts[]>(),
+  //     sessionID: SessionID.zod,
+  //     auto: z.boolean(),
+  //     overflow: z.boolean().optional(),
+  //   }),
+  //   (input) => runPromise((svc) => svc.process(input)),
+  // )
 
   export const create = fn(
     z.object({

@@ -1,6 +1,6 @@
 import { Log } from "../util/log"
 import path from "path"
-import { Global } from "../global"
+import { Global } from "@/global"
 import { NamedError } from "@opencode-ai/util/error"
 import z from "zod"
 import { AppFileSystem } from "@/filesystem"
@@ -124,22 +124,17 @@ export namespace Storage {
           if (!id) continue
           projectID = id
 
-          yield* fs.writeWithDirs(
-            path.join(dir, "project", projectID + ".json"),
-            JSON.stringify(
-              {
-                id,
-                vcs: "git",
-                worktree,
-                time: {
-                  created: Date.now(),
-                  initialized: Date.now(),
-                },
-              },
-              null,
-              2,
-            ),
-          )
+          const projectFile = path.join(dir, "project", projectID + ".json")
+          yield* fs.ensureDir(path.dirname(projectFile))
+          yield* fs.writeJson(projectFile, {
+            id,
+            vcs: "git",
+            worktree,
+            time: {
+              created: Date.now(),
+              initialized: Date.now(),
+            },
+          })
 
           log.info(`migrating sessions for project ${projectID}`)
           for (const sessionFile of yield* fs.glob("storage/session/info/*.json", {
@@ -150,7 +145,8 @@ export namespace Storage {
             log.info("copying", { sessionFile, dest })
             const session = yield* fs.readJson(sessionFile)
             const info = decodeSession(session, { onExcessProperty: "preserve" })
-            yield* fs.writeWithDirs(dest, JSON.stringify(session, null, 2))
+            yield* fs.ensureDir(path.dirname(dest))
+            yield* fs.writeJson(dest, session)
             if (Option.isNone(info)) continue
             log.info(`migrating messages for session ${info.value.id}`)
             for (const msgFile of yield* fs.glob(`storage/session/message/${info.value.id}/*.json`, {
@@ -164,7 +160,8 @@ export namespace Storage {
               })
               const message = yield* fs.readJson(msgFile)
               const item = decodeMessage(message, { onExcessProperty: "preserve" })
-              yield* fs.writeWithDirs(next, JSON.stringify(message, null, 2))
+              yield* fs.ensureDir(path.dirname(next))
+              yield* fs.writeJson(next, message)
               if (Option.isNone(item)) continue
 
               log.info(`migrating parts for message ${item.value.id}`)
@@ -178,7 +175,8 @@ export namespace Storage {
                   partFile,
                   dest: out,
                 })
-                yield* fs.writeWithDirs(out, JSON.stringify(part, null, 2))
+                yield* fs.ensureDir(path.dirname(out))
+                yield* fs.writeJson(out, part)
               }
             }
           }
@@ -194,24 +192,19 @@ export namespace Storage {
         const session = decodeSummary(raw, { onExcessProperty: "preserve" })
         if (Option.isNone(session)) continue
         const diffs = session.value.summary.diffs
-        yield* fs.writeWithDirs(
-          path.join(dir, "session_diff", session.value.id + ".json"),
-          JSON.stringify(diffs, null, 2),
-        )
-        yield* fs.writeWithDirs(
-          path.join(dir, "session", session.value.projectID, session.value.id + ".json"),
-          JSON.stringify(
-            {
-              ...(raw as Record<string, unknown>),
-              summary: {
-                additions: diffs.reduce((sum, x) => sum + x.additions, 0),
-                deletions: diffs.reduce((sum, x) => sum + x.deletions, 0),
-              },
-            },
-            null,
-            2,
-          ),
-        )
+        const diffFile = path.join(dir, "session_diff", session.value.id + ".json")
+        yield* fs.ensureDir(path.dirname(diffFile))
+        yield* fs.writeJson(diffFile, diffs)
+
+        const sessionOut = path.join(dir, "session", session.value.projectID, session.value.id + ".json")
+        yield* fs.ensureDir(path.dirname(sessionOut))
+        yield* fs.writeJson(sessionOut, {
+          ...(raw as Record<string, unknown>),
+          summary: {
+            additions: diffs.reduce((sum, x) => sum + x.additions, 0),
+            deletions: diffs.reduce((sum, x) => sum + x.deletions, 0),
+          },
+        })
       }
     }),
   ]
@@ -254,7 +247,8 @@ export namespace Storage {
         body.pipe(Effect.catchIf(missing, () => fail(target)))
 
       const writeJson = Effect.fnUntraced(function* (target: string, content: unknown) {
-        yield* fs.writeWithDirs(target, JSON.stringify(content, null, 2))
+        yield* fs.ensureDir(path.dirname(target))
+        yield* fs.writeJson(target, content)
       })
 
       const withResolved = <A, E>(
@@ -299,9 +293,7 @@ export namespace Storage {
         })
 
       const write: Interface["write"] = (key: string[], content: unknown) =>
-        Effect.gen(function* () {
-          yield* withResolved(key, (target, rw) => TxReentrantLock.withWriteLock(rw, writeJson(target, content)))
-        })
+        withResolved(key, (target, rw) => TxReentrantLock.withWriteLock(rw, writeJson(target, content)))
 
       const list: Interface["list"] = Effect.fn("Storage.list")(function* (prefix: string[]) {
         const dir = (yield* state).dir

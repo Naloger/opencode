@@ -10,7 +10,7 @@ import { lazy } from "@opencode-ai/util/lazy"
 import { Shell } from "@/shell/shell"
 import { Plugin } from "@/plugin"
 import { PtyID } from "./schema"
-import { Effect, Layer, ServiceMap } from "effect"
+import { Effect, Layer, Option, ServiceMap } from "effect"
 
 export namespace Pty {
   const log = Log.create({ service: "pty" })
@@ -325,20 +325,22 @@ export namespace Pty {
         })()
 
         if (data) {
-          try {
-            for (let i = 0; i < data.length; i += BUFFER_CHUNK) {
-              ws.send(data.slice(i, i + BUFFER_CHUNK))
-            }
-          } catch {
+          const sentData = yield* Effect.option(
+            Effect.sync(() => {
+              for (let i = 0; i < data.length; i += BUFFER_CHUNK) {
+                ws.send(data.slice(i, i + BUFFER_CHUNK))
+              }
+            }),
+          )
+          if (Option.isNone(sentData)) {
             cleanup()
             ws.close()
             return
           }
         }
 
-        try {
-          ws.send(meta(end))
-        } catch {
+        const sentMeta = yield* Effect.option(Effect.sync(() => ws.send(meta(end))))
+        if (Option.isNone(sentMeta)) {
           cleanup()
           ws.close()
           return
@@ -371,9 +373,6 @@ export namespace Pty {
     return runPromise((svc) => svc.get(id))
   }
 
-  export async function resize(id: PtyID, cols: number, rows: number) {
-    return runPromise((svc) => svc.resize(id, cols, rows))
-  }
 
   export async function write(id: PtyID, data: string) {
     return runPromise((svc) => svc.write(id, data))

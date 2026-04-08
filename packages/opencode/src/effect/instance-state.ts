@@ -36,10 +36,7 @@ export namespace InstanceState {
     Effect.gen(function* () {
       const cache = yield* ScopedCache.make<string, A, E, R>({
         capacity: Number.POSITIVE_INFINITY,
-        lookup: () =>
-          Effect.gen(function* () {
-            return yield* init(yield* context)
-          }),
+        lookup: () => Effect.flatMap(context, init),
       })
 
       const off = registerDisposer((directory) => Effect.runPromise(ScopedCache.invalidate(cache, directory)))
@@ -52,9 +49,7 @@ export namespace InstanceState {
     })
 
   export const get = <A, E, R>(self: InstanceState<A, E, R>) =>
-    Effect.gen(function* () {
-      return yield* ScopedCache.get(self.cache, yield* directory)
-    })
+    Effect.flatMap(directory, (dir) => ScopedCache.get(self.cache, dir))
 
   export const use = <A, E, R, B>(self: InstanceState<A, E, R>, select: (value: A) => B) =>
     Effect.map(get(self), select)
@@ -64,15 +59,6 @@ export namespace InstanceState {
     select: (value: A) => Effect.Effect<B, E2, R2>,
   ) => Effect.flatMap(get(self), select)
 
-  export const has = <A, E, R>(self: InstanceState<A, E, R>) =>
-    Effect.gen(function* () {
-      return yield* ScopedCache.has(self.cache, yield* directory)
-    })
-
-  export const invalidate = <A, E, R>(self: InstanceState<A, E, R>) =>
-    Effect.gen(function* () {
-      return yield* ScopedCache.invalidate(self.cache, yield* directory)
-    })
 
   /**
    * Effect finalizers run on the fiber scheduler after the original async

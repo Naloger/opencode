@@ -149,17 +149,17 @@ export const make = Effect.gen(function* () {
     serr: ChildProcess.StderrConfig,
     extra: ReadonlyArray<{ fd: number; config: ChildProcess.AdditionalFdConfig }>,
   ): NodeChildProcess.StdioOptions => {
-    const pipe = (x: NodeChildProcess.IOType | undefined) =>
+    const mapIo = (x: NodeChildProcess.IOType | undefined) =>
       process.platform === "win32" && x === "pipe" ? "overlapped" : x
     const arr: Array<NodeChildProcess.IOType | undefined> = [
-      pipe(input(sin.stream)),
-      pipe(output(sout.stream)),
-      pipe(output(serr.stream)),
+      mapIo(input(sin.stream)),
+      mapIo(output(sout.stream)),
+      mapIo(output(serr.stream)),
     ]
     if (extra.length === 0) return arr as NodeChildProcess.StdioOptions
     const max = extra.reduce((acc, x) => Math.max(acc, x.fd), 2)
     for (let i = 3; i <= max; i++) arr[i] = "ignore"
-    for (const x of extra) arr[x.fd] = pipe("pipe")
+    for (const x of extra) arr[x.fd] = mapIo("pipe")
     return arr as NodeChildProcess.StdioOptions
   }
 

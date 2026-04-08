@@ -9,7 +9,7 @@ import { makeRuntime } from "@/effect/run-service"
 import { AppFileSystem } from "@/filesystem"
 import { Hash } from "@/util/hash"
 import { Config } from "../config/config"
-import { Global } from "../global"
+import { Global } from "@/global"
 import { Log } from "../util/log"
 
 export namespace Snapshot {

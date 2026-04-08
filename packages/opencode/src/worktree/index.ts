@@ -1,6 +1,6 @@
 import z from "zod"
 import { NamedError } from "@opencode-ai/util/error"
-import { Global } from "../global"
+import { Global } from "@/global"
 import { Instance } from "../project/instance"
 import { InstanceBootstrap } from "../project/bootstrap"
 import { Project } from "../project/project"

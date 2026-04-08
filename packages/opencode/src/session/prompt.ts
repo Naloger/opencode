@@ -11,25 +11,25 @@ import { Provider } from "../provider/provider"
 import { ModelID, ProviderID } from "../provider/schema"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import { SessionCompaction } from "./compaction"
-import { Bus } from "../bus"
+import { Bus } from "@/bus"
 import { ProviderTransform } from "../provider/transform"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
-import { Plugin } from "../plugin"
-import PROMPT_PLAN from "../session/prompt/plan.txt"
+import { Plugin } from "@/plugin"
+import PROMPT_PLAN from "@/session/prompt/plan.txt"
 import BUILD_SWITCH from "../session/prompt/build-switch.txt"
 import MAX_STEPS from "../session/prompt/max-steps.txt"
 import { ToolRegistry } from "../tool/registry"
 import { Runner } from "@/effect/runner"
-import { MCP } from "../mcp"
-import { LSP } from "../lsp"
+import { MCP } from "@/mcp"
+import { LSP } from "@/lsp"
 import { FileTime } from "../file/time"
 import { Flag } from "../flag/flag"
 import { ulid } from "ulid"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import * as CrossSpawnSpawner from "@/effect/cross-spawn-spawner"
 import * as Stream from "effect/Stream"
-import { Command } from "../command"
+import { Command } from "@/command"
 import { pathToFileURL, fileURLToPath } from "url"
 import { ConfigMarkdown } from "../config/markdown"
 import { SessionSummary } from "./summary"
@@ -804,6 +804,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         yield* sessions.updatePart(part)
 
         const sh = Shell.preferred()
+        const quote = (cmd: string) => `'${cmd.replaceAll("'", `'\\''`)}'`
         const shellName = (
           process.platform === "win32" ? path.win32.basename(sh, ".exe") : path.basename(sh)
         ).toLowerCase()
@@ -819,7 +820,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 [[ -f ~/.zshenv ]] && source ~/.zshenv >/dev/null 2>&1 || true
                 [[ -f "\${ZDOTDIR:-$HOME}/.zshrc" ]] && source "\${ZDOTDIR:-$HOME}/.zshrc" >/dev/null 2>&1 || true
                 cd "$__oc_cwd"
-                eval ${JSON.stringify(input.command)}
+                eval ${quote(input.command)}
               `,
             ],
           },
@@ -832,7 +833,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 shopt -s expand_aliases
                 [[ -f ~/.bashrc ]] && source ~/.bashrc >/dev/null 2>&1 || true
                 cd "$__oc_cwd"
-                eval ${JSON.stringify(input.command)}
+                eval ${quote(input.command)}
               `,
             ],
           },
@@ -962,7 +963,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           !input.variant && ag.variant && same
             ? yield* provider
                 .getModel(model.providerID, model.modelID)
-                .pipe(Effect.catch(() => Effect.succeed(undefined)))
+                .pipe(Effect.catch(() => Effect.void))
             : undefined
         const variant = input.variant ?? (ag.variant && full?.variants?.[ag.variant] ? ag.variant : undefined)
 
@@ -995,6 +996,16 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         const resolvePart: (part: PromptInput["parts"][number]) => Effect.Effect<Draft<MessageV2.Part>[]> = Effect.fn(
           "SessionPrompt.resolveUserPart",
         )(function* (part) {
+          const readText = (filePath: string, offset?: number, limit?: number) =>
+            [
+              "Called the Read tool with the following input:",
+              `filePath=${filePath}`,
+              offset === undefined ? undefined : `offset=${offset}`,
+              limit === undefined ? undefined : `limit=${limit}`,
+            ]
+              .filter(Boolean)
+              .join(" ")
+
           if (part.type === "file") {
             if (part.source?.type === "resource") {
               const { clientName, uri } = part.source
@@ -1058,7 +1069,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                       sessionID: input.sessionID,
                       type: "text",
                       synthetic: true,
-                      text: `Called the Read tool with the following input: ${JSON.stringify({ filePath: part.filename })}`,
+                      text: readText(part.filename ?? "unknown"),
                     },
                     {
                       messageID: info.id,
@@ -1085,9 +1096,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                     let start = parseInt(range.start)
                     let end = range.end ? parseInt(range.end) : undefined
                     if (start === end) {
-                      const symbols = yield* lsp
-                        .documentSymbol(filePathURI)
-                        .pipe(Effect.catch(() => Effect.succeed([])))
+                      const symbols = yield* lsp.documentSymbol(filePathURI)
                       for (const symbol of symbols) {
                         let r: LSP.Range | undefined
                         if ("range" in symbol) r = symbol.range
@@ -1109,7 +1118,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                       sessionID: input.sessionID,
                       type: "text",
                       synthetic: true,
-                      text: `Called the Read tool with the following input: ${JSON.stringify(args)}`,
+                      text: readText(filepath, offset, limit),
                     },
                   ]
                   const read = yield* registry.fromID("read").pipe(
@@ -1198,7 +1207,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                       sessionID: input.sessionID,
                       type: "text",
                       synthetic: true,
-                      text: `Called the Read tool with the following input: ${JSON.stringify(args)}`,
+                      text: readText(filepath),
                     },
                     {
                       messageID: info.id,
@@ -1559,7 +1568,6 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               }),
             )
             if (outcome === "break") break
-            continue
           }
 
           yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
@@ -1904,7 +1912,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
   }
   const bashRegex = /!`([^`]+)`/g
   // Match [Image N] as single token, quoted strings, or non-space sequences
-  const argsRegex = /(?:\[Image\s+\d+\]|"[^"]*"|'[^']*'|[^\s"']+)/gi
+  const argsRegex = /\[Image\s+\d+]|"[^"]*"|'[^']*'|[^\s"']+/gi
   const placeholderRegex = /\$(\d+)/g
   const quoteTrimRegex = /^["']|["']$/g
 }
