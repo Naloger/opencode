@@ -2,7 +2,7 @@ import path from "path"
 import { Effect } from "effect"
 import type { Tool } from "./tool"
 import { Instance } from "../project/instance"
-import { AppFileSystem } from "../filesystem"
+import { AppFileSystem } from "@/filesystem"
 
 type Kind = "file" | "directory"
 

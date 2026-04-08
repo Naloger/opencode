@@ -1,7 +1,7 @@
 import z from "zod"
 import { Effect } from "effect"
 import { Tool } from "./tool"
-import { Question } from "../question"
+import { Question } from "@/question"
 import DESCRIPTION from "./question.txt"
 
 const parameters = z.object({

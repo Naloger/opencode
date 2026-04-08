@@ -1,44 +1,107 @@
-Performs exact string replacements in files.
+Performs string replacements, insertions, and deletions in files.
 
-Use this tool with a strict payload.
+Always read the file before editing. Never include the `lineNumber: ` prefix when copying from Read output.
 
-Required args:
-- arg: `filePath`
-  - absolute file path only
-  - example: `C:\\repo\\app\\src\\main.ts`
-- arg: `oldString`
-  - exact text currently in file
-  - include exact spaces/tabs/newlines
-  - example: `const port = 3000\n`
-- arg: `newString`
-  - replacement text (must be different from `oldString`)
-  - example: `const port = 3001\n`
+---
 
-Optional args:
-- arg: `replaceAll`
-  - `true` = replace every match
-  - `false` (default) = require exactly one match
-  - example: `true`
+## Required
 
-Example payload:
+- `filePath` — absolute path to the file
+  - example: `C:\\repo\\src\\main.ts`
+
+---
+
+## Modes (`mode`)
+
+Controls what the edit does. Default: `replace`.
+
+### `replace` (default)
+Finds `oldString` in the file and replaces it with `newString`.
+Both `oldString` and `newString` are required.
+
 ```json
 {
-  "filePath": "C:\\repo\\app\\src\\main.ts",
+  "filePath": "C:\\repo\\src\\main.ts",
   "oldString": "const port = 3000\n",
-  "newString": "const port = 3001\n",
-  "replaceAll": false
+  "newString": "const port = 3001\n"
 }
 ```
 
-Rules:
-- You must use your `Read` tool at least once in the conversation before editing.
-- When copying from Read output, never include the `lineNumber: ` prefix.
-- ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
-- Only use emojis if the user explicitly requests it.
+### `insert`
+Inserts `newString` on a new line immediately **after** the line containing `oldString`.
+Use this when you only want to add code without rewriting existing lines — avoids having to repeat large blocks verbatim.
 
-Failure modes:
-- If `oldString` is not found exactly: `oldString not found in content`.
-- If `oldString` matches multiple places and `replaceAll` is false: `Found multiple matches for oldString...`.
-- If multiple matches happen, either:
-  - provide more surrounding context in `oldString`, or
-  - set `replaceAll` to `true` when replacing all occurrences is intended.
+```json
+{
+  "filePath": "C:\\repo\\src\\main.ts",
+  "mode": "insert",
+  "oldString": "import { foo } from './foo'",
+  "newString": "import { bar } from './bar'"
+}
+```
+
+### `delete`
+Removes content from the file. Two sub-forms:
+
+**By line range** — no `oldString` or `newString` needed:
+```json
+{
+  "filePath": "C:\\repo\\src\\main.ts",
+  "mode": "delete",
+  "startLine": 42,
+  "endLine": 58
+}
+```
+
+**By string match** — provide `oldString`, omit `newString`:
+```json
+{
+  "filePath": "C:\\repo\\src\\main.ts",
+  "mode": "delete",
+  "oldString": "console.log('debug')\n"
+}
+```
+
+---
+
+## Optional args
+
+- `newString` — replacement or insertion text (required for `replace` and `insert`, omit for `delete`)
+- `replaceAll` — `true` replaces every match; `false` (default) requires exactly one match
+- `startLine` — 1-based line number; narrows the search range (improves reliability, required for `delete` by line range)
+- `endLine` — 1-based line number, inclusive; must be ≥ `startLine`
+
+### Line-range narrowing
+Providing `startLine` and `endLine` restricts where the tool searches for `oldString`.
+Use this whenever you know roughly where the target code is — it makes matching far more reliable and prevents false positives in large files.
+
+```json
+{
+  "filePath": "C:\\repo\\src\\server.ts",
+  "oldString": "app.listen(3000)",
+  "newString": "app.listen(4000)",
+  "startLine": 80,
+  "endLine": 95
+}
+```
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| `oldString not found` | No match in file (or search range) | Re-read the file; copy `oldString` exactly. The error includes the **top 3 closest matches** with line numbers — use one of those as your corrected `oldString`. |
+| `Found multiple matches` | `oldString` matches more than one location | Add more surrounding context lines to `oldString`, or set `replaceAll: true` if replacing all is intended. |
+| `insert mode: could not find anchor line` | Anchor not found for insertion | Provide a more unique anchor line, or add `startLine`/`endLine` to narrow the range. |
+| `delete mode requires either (startLine + endLine) or oldString` | Neither line range nor search string supplied | Add `startLine`+`endLine`, or provide `oldString` to identify the block. |
+
+---
+
+## Rules
+
+- Read the file at least once before editing.
+- Prefer editing existing files. Only create new files when explicitly required.
+- `oldString` and `newString` must be different when using `replace` mode.
+- Line numbers are 1-based and inclusive.
+- When `startLine`/`endLine` are provided, the search is restricted to that range — matches outside it are ignored.
