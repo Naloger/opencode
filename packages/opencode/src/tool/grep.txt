@@ -1,8 +1,46 @@
-- Fast content search tool that works with any codebase size
-- Searches file contents using regular expressions
-- Supports full regex syntax (eg. "log.*Error", "function\s+\w+", etc.)
-- Filter files by pattern with the include parameter (eg. "*.js", "*.{ts,tsx}")
-- Returns file paths and line numbers with at least one match sorted by modification time
+Fast content search tool that works with any codebase size. Searches file contents using regular expressions and returns file paths and line numbers with matches.
+
+---
+
+## Required
+
+- `pattern` — The regex pattern to search for in file contents. Supports full regex syntax (e.g., "log.*Error", "function\s+\w+")
+
+
+---
+
+## Optional args
+
+- `path` — The directory to search in. Defaults to the current working directory
+- `include` — File pattern to include in the search (e.g., "*.js", "*.{ts,tsx}")
+
+
+---
+
+## Usage notes
+
+- Returns file paths and line numbers with at least one match, sorted by modification time
+- Results are limited to 100 matches by default; if more exist, only the first 100 are shown
+- Lines longer than 2000 characters are truncated
 - Use this tool when you need to find files containing specific patterns
-- If you need to identify/count the number of matches within files, use the Bash tool with `rg` (ripgrep) directly. Do NOT use `grep`.
-- When you are doing an open-ended search that may require multiple rounds of globbing and grepping, use the Task tool instead
+- For counting matches within files, use the Bash tool with `rg` (ripgrep) directly
+
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| No files found | Pattern not found in any files | Try a different pattern or check the path/include parameters |
+| Results truncated | More than 100 matches found | Use a more specific pattern or path to narrow results |
+
+
+---
+
+## Rules
+
+- Always provide a regex pattern
+- Use include parameter to filter by file type when possible
+- For open-ended searches requiring multiple rounds, use the Task tool instead
+- Do NOT use bash grep; use this tool instead

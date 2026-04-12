@@ -1,19 +1,50 @@
-Interact with Language Server Protocol (LSP) servers to get code intelligence features.
+Interact with Language Server Protocol (LSP) servers to get code intelligence features like definitions, references, and symbols.
 
-Supported operations:
-- goToDefinition: Find where a symbol is defined
-- findReferences: Find all references to a symbol
-- hover: Get hover information (documentation, type info) for a symbol
-- documentSymbol: Get all symbols (functions, classes, variables) in a document
-- workspaceSymbol: Search for symbols across the entire workspace
-- goToImplementation: Find implementations of an interface or abstract method
-- prepareCallHierarchy: Get call hierarchy item at a position (functions/methods)
-- incomingCalls: Find all functions/methods that call the function at a position
-- outgoingCalls: Find all functions/methods called by the function at a position
+---
 
-All operations require:
-- filePath: The file to operate on
-- line: The line number (1-based, as shown in editors)
-- character: The character offset (1-based, as shown in editors)
+## Required
 
-Note: LSP servers must be configured for the file type. If no server is available, an error will be returned.
+- `operation` — The LSP operation to perform. One of: "goToDefinition", "findReferences", "hover", "documentSymbol", "workspaceSymbol", "goToImplementation", "prepareCallHierarchy", "incomingCalls", "outgoingCalls"
+- `filePath` — The absolute or relative path to the file
+- `line` — The line number (1-based, as shown in editors)
+- `character` — The character offset (1-based, as shown in editors)
+
+---
+
+## Supported operations
+
+- `goToDefinition` — Find where a symbol is defined
+- `findReferences` — Find all references to a symbol
+- `hover` — Get hover information (documentation, type info) for a symbol
+- `documentSymbol` — Get all symbols (functions, classes, variables) in a document
+- `workspaceSymbol` — Search for symbols across the entire workspace
+- `goToImplementation` — Find implementations of an interface or abstract method
+- `prepareCallHierarchy` — Get call hierarchy item at a position
+- `incomingCalls` — Find all functions/methods that call the function at a position
+- `outgoingCalls` — Find all functions/methods called by the function at a position
+
+---
+
+## Usage notes
+
+- LSP servers must be configured for the file type
+- Line and character positions are 1-based (as shown in editors)
+- Results are returned as JSON
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| File not found | Specified file doesn't exist | Verify the file path |
+| No LSP server available | No LSP server configured for file type | Check LSP configuration |
+| No results found | Operation returned empty results | Try different position or operation |
+
+---
+
+## Rules
+
+- Use absolute paths when possible
+- Ensure LSP servers are properly configured for your file types
+- Position cursor at meaningful locations (on symbols, not whitespace)

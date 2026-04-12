@@ -1,6 +1,39 @@
-- Fast file pattern matching tool that works with any codebase size
-- Supports glob patterns like "**/*.js" or "src/**/*.ts"
-- Returns matching file paths sorted by modification time
+Fast file pattern matching tool that works with any codebase size. Supports glob patterns and returns matching file paths sorted by modification time.
+
+---
+
+## Required
+
+- `pattern` — The glob pattern to match files against (e.g., "**/*.js", "src/**/*.ts")
+
+---
+
+## Optional args
+
+- `path` — The directory to search in. Defaults to the current working directory
+
+---
+
+## Usage notes
+
+- Returns up to 100 matching file paths, sorted by modification time
+- If more than 100 files match, results are truncated
+- Supports full glob syntax including ** for recursive matching
 - Use this tool when you need to find files by name patterns
-- When you are doing an open-ended search that may require multiple rounds of globbing and grepping, use the Task tool instead
-- You have the capability to call multiple tools in a single response. It is always better to speculatively perform multiple searches as a batch that are potentially useful.
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| No files found | Pattern doesn't match any files | Try a different pattern or check the path parameter |
+| Results truncated | More than 100 matches found | Use a more specific pattern to narrow results |
+
+---
+
+## Rules
+
+- Always provide a glob pattern
+- For open-ended searches requiring multiple rounds, use the Task tool instead
+- Call multiple glob searches in parallel when searching for different patterns

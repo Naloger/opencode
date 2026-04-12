@@ -1,12 +1,41 @@
-- Search and get relevant context for any programming task using Exa Code API
-- Provides the highest quality and freshest context for libraries, SDKs, and APIs
-- Use this tool for ANY question or task related to programming
-- Returns comprehensive code examples, documentation, and API references
-- Optimized for finding specific programming patterns and solutions
+Search for relevant code context, examples, and documentation using Exa Code API. Provides high-quality programming resources and solutions.
 
-Usage notes:
-  - Adjustable token count (1000-50000) for focused or comprehensive results
-  - Default 5000 tokens provides balanced context for most queries
-  - Use lower values for specific questions, higher values for comprehensive documentation
-  - Supports queries about frameworks, libraries, APIs, and programming concepts
-  - Examples: 'React useState hook examples', 'Python pandas dataframe filtering', 'Express.js middleware'
+---
+
+## Required
+
+- `query` — Search query for APIs, libraries, SDKs, or programming concepts (e.g., "React useState hook examples", "Python pandas dataframe filtering")
+
+---
+
+## Optional args
+
+- `tokensNum` — Number of tokens to return (1000-50000). Default: 5000
+
+---
+
+## Usage notes
+
+- Returns comprehensive code examples and documentation
+- Optimized for finding specific programming patterns and solutions
+- Use for any programming-related questions or tasks
+- Adjust token count based on needed detail level
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| No results found | Query didn't match any code/docs | Try different search terms or be more specific |
+| Search error | API returned error | Check query format or try again later |
+| Timeout | Request took too long | Try a simpler query |
+
+---
+
+## Rules
+
+- Use specific library/framework names in queries
+- Adjust tokensNum based on complexity (lower for focused, higher for comprehensive)
+- Prefer this tool for programming questions over general web search
+- Include version numbers when relevant

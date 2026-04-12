@@ -1,10 +1,37 @@
-Use this tool when you need to ask the user questions during execution. This allows you to:
-1. Gather user preferences or requirements
-2. Clarify ambiguous instructions
-3. Get decisions on implementation choices as you work
-4. Offer choices to the user about what direction to take.
+Ask the user questions during execution to gather preferences, clarify requirements, or get decisions on implementation choices.
 
-Usage notes:
-- When `custom` is enabled (default), a "Type your own answer" option is added automatically; don't include "Other" or catch-all options
-- Answers are returned as arrays of labels; set `multiple: true` to allow selecting more than one
-- If you recommend a specific option, make that the first option in the list and add "(Recommended)" at the end of the label
+---
+
+## Required
+
+- `questions` — Array of question objects, each containing:
+  - `question` — The question text to ask
+  - `options` — Array of possible answer options (optional)
+  - `multiple` — Whether multiple answers can be selected (default: false)
+
+---
+
+## Usage notes
+
+- Use when you need user input during execution
+- Questions can have predefined options or allow custom answers
+- When custom is enabled, a "Type your own answer" option is added automatically
+- Answers are returned as arrays of selected labels
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| No questions provided | Empty questions array | Provide at least one question |
+| Invalid question format | Question object missing required fields | Ensure each question has a question field |
+
+---
+
+## Rules
+
+- Ask questions when instructions are ambiguous
+- Use multiple: true for questions allowing multiple selections
+- Put recommended options first with "(Recommended)" label
+- Don't include "Other" options when custom is enabled

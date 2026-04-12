@@ -1,6 +1,6 @@
 import path from "path"
 import z from "zod"
-import { Global } from "../global"
+import { Global } from "@/global"
 import { Effect, Layer, ServiceMap } from "effect"
 import { AppFileSystem } from "@/filesystem"
 import { makeRuntime } from "@/effect/run-service"

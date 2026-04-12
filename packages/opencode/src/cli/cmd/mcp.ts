@@ -60,6 +60,8 @@ export const McpCommand = cmd({
       .command(McpAuthCommand)
       .command(McpLogoutCommand)
       .command(McpDebugCommand)
+      .command(McpReloadCommand)
+      .command(McpSourceCommand)
       .demandCommand(),
   async handler() {},
 })
@@ -76,6 +78,7 @@ export const McpListCommand = cmd({
         prompts.intro("MCP Servers")
 
         const config = await Config.get()
+        console.log("MCP config:", JSON.stringify(config.mcp, null, 2))
         const mcpServers = config.mcp ?? {}
         const statuses = await MCP.status()
 
@@ -492,6 +495,7 @@ export const McpAddCommand = cmd({
           }
 
           await addMcpToConfig(name, mcpConfig, configPath)
+          await Config.invalidate()
           prompts.log.success(`MCP server "${name}" added to ${configPath}`)
           prompts.outro("MCP server added successfully")
           return
@@ -570,6 +574,7 @@ export const McpAddCommand = cmd({
           }
 
           await addMcpToConfig(name, mcpConfig, configPath)
+          await Config.invalidate()
           prompts.log.success(`MCP server "${name}" added to ${configPath}`)
         }
 
@@ -752,3 +757,79 @@ export const McpDebugCommand = cmd({
     })
   },
 })
+
+export const McpReloadCommand = cmd({
+  command: "reload",
+  describe: "reload MCP configuration from config files",
+  async handler() {
+    await Instance.provide({
+      directory: process.cwd(),
+      async fn() {
+        UI.empty()
+        prompts.intro("Reload MCP Configuration")
+
+        await Config.invalidate()
+        prompts.log.success("MCP configuration reloaded")
+        prompts.outro("Done")
+      },
+    })
+  },
+})
+
+export const McpSourceCommand = cmd({
+  command: "sources",
+  describe: "show where each MCP server is configured (which config file)",
+  async handler() {
+    await Instance.provide({
+      directory: process.cwd(),
+      async fn() {
+        UI.empty()
+        prompts.intro("MCP Configuration Sources")
+
+        const cfg = await Config.get()
+        const mcpServers = cfg.mcp ?? {}
+        const origins = cfg.plugin_origins ?? []
+
+        // Map to track which MCPs we've seen
+        const seen = new Set<string>()
+
+        prompts.log.info("MCP Configuration Locations:")
+        prompts.log.info("  1. Global: ~/.config/opencode/opencode.json")
+        prompts.log.info("  2. Project: .opencode/opencode.jsonc")
+        prompts.log.info("  3. Account/Org: From your OpenCode account")
+        prompts.log.info("")
+
+        if (Object.keys(mcpServers).length === 0) {
+          prompts.log.warn("No MCP servers configured")
+          prompts.outro("Done")
+          return
+        }
+
+        prompts.log.info("Configured MCPs:")
+        for (const [name, config] of Object.entries(mcpServers)) {
+          if (!isMcpConfigured(config)) continue
+
+          seen.add(name)
+
+          const type = config.type === "remote" ? "Remote" : "Local"
+          const typeHint = config.type === "remote" ? config.url : config.command?.join(" ")
+
+          prompts.log.info(`  ${name} (${type})`)
+          prompts.log.info(`    Path: ${typeHint}`)
+          if (config.enabled === false) {
+            prompts.log.info(`    Status: disabled`)
+          }
+        }
+
+        prompts.log.info("")
+        prompts.log.info("To find which file contains each MCP, check:")
+        prompts.log.info("  1. ~/.config/opencode/opencode.json (Global)")
+        prompts.log.info("  2. .opencode/opencode.jsonc in your project")
+        prompts.log.info("  3. Remove from one file, then run: opencode mcp reload")
+
+        prompts.outro("Run 'opencode mcp list' to see connection status")
+      },
+    })
+  },
+})
+

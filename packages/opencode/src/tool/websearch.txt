@@ -1,14 +1,44 @@
-- Search the web using Exa AI - performs real-time web searches and can scrape content from specific URLs
-- Provides up-to-date information for current events and recent data
-- Supports configurable result counts and returns the content from the most relevant websites
-- Use this tool for accessing information beyond knowledge cutoff
-- Searches are performed automatically within a single API call
+Search the web using Exa AI for real-time information and content scraping. Provides up-to-date results beyond knowledge cutoff dates.
 
-Usage notes:
-  - Supports live crawling modes: 'fallback' (backup if cached unavailable) or 'preferred' (prioritize live crawling)
-  - Search types: 'auto' (balanced), 'fast' (quick results), 'deep' (comprehensive search)
-  - Configurable context length for optimal LLM integration
-  - Domain filtering and advanced search options available
+---
 
-The current year is {{year}}. You MUST use this year when searching for recent information or current events
-- Example: If the current year is 2026 and the user asks for "latest AI news", search for "AI news 2026", NOT "AI news 2025"
+## Required
+
+- `query` — Web search query string
+
+---
+
+## Optional args
+
+- `numResults` — Number of search results to return (default: 8)
+- `livecrawl` — Live crawl mode: "fallback" (use as backup) or "preferred" (prioritize live crawling). Default: "fallback"
+- `type` — Search type: "auto" (balanced), "fast" (quick results), or "deep" (comprehensive). Default: "auto"
+- `contextMaxCharacters` — Maximum characters for context (default: 10000)
+
+---
+
+## Usage notes
+
+- Returns content from the most relevant websites
+- Supports domain filtering and advanced search options
+- Automatically handles current year context (current year: {{year}})
+- Use for accessing information beyond knowledge cutoff
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| No results found | Query didn't return matches | Try different search terms |
+| Search error | API returned error | Check query format or try again later |
+| Timeout | Request took too long | Try a simpler query |
+
+---
+
+## Rules
+
+- Always include current year ({{year}}) when searching for recent information
+- Use appropriate search type based on needed depth vs speed
+- Prefer live crawling for time-sensitive information
+- Use contextMaxCharacters to control response length

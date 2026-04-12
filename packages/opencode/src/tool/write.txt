@@ -1,8 +1,37 @@
-Writes a file to the local filesystem.
+Writes content to a file on the local filesystem. Overwrites existing files and creates new ones as needed.
 
-Usage:
-- This tool will overwrite the existing file if there is one at the provided path.
-- If this is an existing file, you MUST use the Read tool first to read the file's contents. This tool will fail if you did not read the file first.
-- ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
-- NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-- Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.
+---
+
+## Required
+
+- `content` — The content to write to the file
+- `filePath` — The absolute path to the file to write
+
+---
+
+## Usage notes
+
+- Will overwrite existing files if one exists at the provided path
+- Automatically formats the file after writing
+- Shows LSP diagnostics if there are errors in the written file
+- Use this tool when you need to create new files or completely replace existing ones
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| File not read first | Attempting to overwrite existing file without reading it first | Use Read tool first to see current content |
+| Permission denied | Insufficient permissions | Check file permissions |
+| Path invalid | Directory doesn't exist | Create parent directories first if needed |
+
+---
+
+## Rules
+
+- ALWAYS prefer editing existing files with the Edit tool instead of overwriting
+- For existing files, you MUST use the Read tool first to see current contents
+- NEVER proactively create documentation files (*.md) or README files unless explicitly requested
+- Only use emojis if the user explicitly requests it
+- Use absolute paths for filePath

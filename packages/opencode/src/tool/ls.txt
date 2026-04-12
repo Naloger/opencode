@@ -1,1 +1,34 @@
-Lists files and directories in a given path. The path parameter must be absolute; omit it to use the current workspace directory. You can optionally provide an array of glob patterns to ignore with the ignore parameter. You should generally prefer the Glob and Grep tools, if you know which directories to search.
+Lists files and directories in a given path with a tree-like structure. Shows hierarchical directory structure with files organized under their parent directories.
+
+---
+
+## Optional args
+
+- `path` — The absolute path to the directory to list. Defaults to the current workspace directory
+- `ignore` — Array of glob patterns to ignore (e.g., ["node_modules", ".git"])
+
+---
+
+## Usage notes
+
+- Returns up to 100 files in a hierarchical tree structure
+- Automatically ignores common build/dependency directories like node_modules, .git, dist, etc.
+- Shows directories with trailing `/` and files without
+- Use this when you need to see the directory structure
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| Directory not found | Path does not exist | Verify the path parameter |
+| Results truncated | More than 100 files found | Use ignore parameter to filter out unwanted files |
+
+---
+
+## Rules
+
+- Prefer Glob and Grep tools when you know specific patterns to search for
+- Use absolute paths when specifying the path parameter
+- Use ignore parameter to filter out build artifacts and dependencies

@@ -31,3 +31,63 @@ It is important to remember:
 
 - You must include a header with your intended action (Add/Delete/Update)
 - You must prefix new lines with `+` even when creating a new file
+
+---
+
+## Required
+
+- `patchText` — The full patch text describing all changes to be made
+
+---
+
+## Patch Format
+
+Patches use a structured format:
+
+```
+*** Begin Patch
+[ file operations ]
+*** End Patch
+```
+
+### File Operations
+
+**Add File: <path>** - Create a new file
+- Follow with `+` prefixed lines for content
+
+**Update File: <path>** - Modify an existing file
+- Use `@@` for context, `-` for removals, `+` for additions
+- Optional `*** Move to: <new_path>` for renaming
+
+**Delete File: <path>** - Remove a file
+- No content follows
+
+---
+
+## Usage notes
+
+- All changes are applied atomically - either all succeed or none are applied
+- Files are automatically formatted after changes
+- LSP diagnostics are reported for modified files
+- Supports file moves/renames during updates
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| Invalid patch format | Patch doesn't follow required structure | Ensure proper Begin/End Patch and headers |
+| File not found | Trying to update/delete non-existent file | Check file paths |
+| Permission denied | Insufficient permissions | Check file permissions |
+| Parse error | Malformed patch content | Validate patch syntax |
+
+---
+
+## Rules
+
+- Always use the correct headers for each operation type
+- Prefix all new content lines with `+`
+- Include proper diff context with `@@` for updates
+- Test patches on small changes first
+- Use absolute paths when possible
