@@ -5,6 +5,7 @@ import { EditTool } from "./edit"
 import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
+import { LookAtImageTool } from "./look_at_image"
 import { TaskDescription, TaskTool } from "./task"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
@@ -142,6 +143,7 @@ export namespace ToolRegistry {
                 InvalidTool,
                 BashTool,
                 ReadTool,
+                LookAtImageTool,
                 GlobTool,
                 GrepTool,
                 EditTool,

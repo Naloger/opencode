@@ -3,13 +3,13 @@ import { mkdir, unlink } from "fs/promises"
 import path from "path"
 
 import { tmpdir } from "../fixture/fixture"
-import { Global } from "../../src/global"
-import { Instance } from "../../src/project/instance"
-import { Plugin } from "../../src/plugin/index"
-import { Provider } from "../../src/provider/provider"
-import { ProviderID, ModelID } from "../../src/provider/schema"
-import { Filesystem } from "../../src/util/filesystem"
-import { Env } from "../../src/env"
+import { Global } from "@/../src/global"
+import { Instance } from "@/../src/project/instance"
+import { Plugin } from "@/../src/plugin/index"
+import { Provider } from "@/../src/provider/provider"
+import { ProviderID, ModelID } from "@/../src/provider/schema"
+import { Filesystem } from "@/../src/util/filesystem"
+import { Env } from "@/../src/env"
 
 function paid(providers: Awaited<ReturnType<typeof Provider.list>>) {
   const item = providers[ProviderID.make("opencode")]
@@ -1063,6 +1063,46 @@ test("provider with custom npm package", async () => {
       expect(providers[ProviderID.make("local-llm")]).toBeDefined()
       expect(providers[ProviderID.make("local-llm")].models["llama-3"].api.npm).toBe("@ai-sdk/openai-compatible")
       expect(providers[ProviderID.make("local-llm")].options.baseURL).toBe("http://localhost:11434/v1")
+    },
+  })
+})
+
+test("local ollama openai-compatible infers image input capability", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          provider: {
+            "local-ollama": {
+              name: "Local Ollama",
+              npm: "@ai-sdk/openai-compatible",
+              env: [],
+              options: {
+                apiKey: "not-needed",
+                baseURL: "http://localhost:11434/v1",
+              },
+              models: {
+                "gemma4:e4b": {
+                  name: "Gemma 4 e4b",
+                  tool_call: true,
+                  limit: { context: 8192, output: 2048 },
+                },
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const providers = await Provider.list()
+      const mdl = providers[ProviderID.make("local-ollama")].models["gemma4:e4b"]
+      expect(mdl.capabilities.input.image).toBe(true)
     },
   })
 })

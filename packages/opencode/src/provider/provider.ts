@@ -925,6 +925,37 @@ export namespace Provider {
 
   export class Service extends ServiceMap.Service<Service, Interface>()("@opencode/Provider") {}
 
+  function img(input: {
+    mods?: string[]
+    prev?: boolean
+    id?: string
+    npm?: string
+    api?: unknown
+    base?: unknown
+    attachment?: boolean
+  }) {
+    if (input.mods) return input.mods.includes("image")
+    if (input.prev !== undefined) return input.prev
+
+    const txt = [
+      input.id,
+      input.npm,
+      typeof input.api === "string" ? input.api : "",
+      typeof input.base === "string" ? input.base : "",
+    ]
+      .join(" ")
+      .toLowerCase()
+
+    const ollama =
+      txt.includes("ollama") ||
+      txt.includes("localhost:11434") ||
+      txt.includes("127.0.0.1:11434") ||
+      txt.includes(":11434")
+
+    if (ollama) return true
+    return input.attachment ?? false
+  }
+
   function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model): Model {
     const m: Model = {
       id: ModelID.make(model.id),
@@ -970,7 +1001,13 @@ export namespace Provider {
         input: {
           text: model.modalities?.input?.includes("text") ?? false,
           audio: model.modalities?.input?.includes("audio") ?? false,
-          image: model.modalities?.input?.includes("image") ?? false,
+          image: img({
+            mods: model.modalities?.input,
+            id: provider.id,
+            npm: model.provider?.npm ?? provider.npm,
+            api: model.provider?.api ?? provider.api,
+            attachment: model.attachment,
+          }),
           video: model.modalities?.input?.includes("video") ?? false,
           pdf: model.modalities?.input?.includes("pdf") ?? false,
         },
@@ -1106,8 +1143,15 @@ export namespace Provider {
                     text: model.modalities?.input?.includes("text") ?? existingModel?.capabilities.input.text ?? true,
                     audio:
                       model.modalities?.input?.includes("audio") ?? existingModel?.capabilities.input.audio ?? false,
-                    image:
-                      model.modalities?.input?.includes("image") ?? existingModel?.capabilities.input.image ?? false,
+                    image: img({
+                      mods: model.modalities?.input,
+                      prev: existingModel?.capabilities.input.image,
+                      id: providerID,
+                      npm: model.provider?.npm ?? provider.npm ?? existingModel?.api.npm,
+                      api: model.provider?.api ?? provider?.api ?? existingModel?.api.url,
+                      base: (provider.options as Record<string, unknown> | undefined)?.["baseURL"],
+                      attachment: model.attachment ?? existingModel?.capabilities.attachment,
+                    }),
                     video:
                       model.modalities?.input?.includes("video") ?? existingModel?.capabilities.input.video ?? false,
                     pdf: model.modalities?.input?.includes("pdf") ?? existingModel?.capabilities.input.pdf ?? false,

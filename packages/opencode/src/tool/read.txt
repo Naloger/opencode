@@ -22,6 +22,7 @@ Read a file or directory from the local filesystem. If the path does not exist, 
 - Any line longer than 2000 characters is truncated
 - To read later sections of large files, call this tool again with a larger offset
 - Can read image files and PDFs and return them as file attachments
+- For image analysis tasks, prefer the `image` tool so the intent is explicit
 - Use the grep tool to find specific content in large files
 
 ---

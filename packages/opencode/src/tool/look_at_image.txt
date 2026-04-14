@@ -1,0 +1,86 @@
+Inspect an image file by loading it from the local filesystem and attaching it as a data URL so the model can analyze its contents.
+
+---
+
+## Required args
+
+- `filePath` — Absolute path to the image file to inspect
+
+---
+
+## What this tool does
+
+- Validates that the active model supports vision input (`capabilities.input.image`)
+- Loads a single image file from disk (JPEG, PNG, WebP, GIF, etc.)
+- Encodes the image as a base64 data URL
+- Attaches it to your message so the model can see and describe it
+
+---
+
+## Usage notes
+
+- **Vision model required:** Only works if the active model supports image input. If you get an error, switch to a model like Claude, GPT-4V, or Gemini Pro Vision.
+- **Image formats only:** Accepts JPEG, PNG, WebP, GIF, AVIF, BMP. Rejects SVG and other vector formats.
+- **Reference support:** You can pass a recent session reference like `Image 1` or `[Image 1]`; the tool resolves it to the underlying local file path when available.
+- **Use read tool for text:** For text documents or PDFs, use the `read` tool instead.
+- **Parallel loading:** Call this tool multiple times in parallel to inspect many images at once.
+
+---
+
+## Examples
+
+**Single image inspection:**
+```
+{"filePath": "C:\\screenshots\\app-ui.png"}
+```
+
+**Multiple images (parallel):**
+Call the tool 2–3 times with different paths; the model will see all attachments together.
+
+---
+
+## Prompt helpers
+
+When asking the model to inspect an image, be specific about what you want:
+
+- **Generic:** "Look at this image" → Less effective; model may miss details.
+- **Specific:** "Inspect the button layout, colors, and text in this screenshot. Are there any UX issues?" → Better; directs analysis.
+
+**Examples of good prompts:**
+
+1. **Bug report:** "Analyze this error screenshot. What does the error message say? Are there any clues about the root cause?"
+2. **Design feedback:** "Review this mockup. Check for alignment issues, color contrast, and typography. Is there anything that doesn't look right?"
+3. **Document scanning:** "Extract all visible text from this image. Format it as markdown with sections for headers and bullet points."
+4. **Chart analysis:** "Summarize the data shown in this chart. What trends do you see? Are there any anomalies?"
+5. **Code inspection:** "I took a screenshot of my IDE. What code patterns or issues do you notice?"
+
+---
+
+## Failure modes
+
+| Error | Cause | Fix |
+|---|---|---|
+| Model does not support image input | Active model lacks vision capability | Switch to a vision-capable model (Claude, GPT-4V, Gemini) |
+| File not found | Path is invalid or file doesn't exist | Verify the path; use `glob` or `list` tool to find the file first |
+| Expected an image file, but got directory | You passed a folder path instead of a file | Provide the full path to an image file, not a directory |
+| Expected an image file, but got MIME type | File is not a recognized image format | Ensure the file is JPEG, PNG, WebP, GIF, AVIF, or BMP |
+| Current model does not support image input | Model was switched or doesn't have vision | Confirm your model supports `capabilities.input.image` |
+
+---
+
+## Rules
+
+- Always use absolute paths
+- Request permission before reading (automatic)
+- Call in parallel when analyzing multiple images
+- Combine with other tools: use `glob` to find images, `bash` to batch-process them
+- One image per call (for clarity); combine messages to discuss multiple images
+
+---
+
+## Integration notes
+
+- Tool ID: `look_at_image`
+- Parameters: JSON object with `filePath` (string, absolute path)
+- Output: Confirmation message + base64 data URL attachment
+- Metadata includes MIME type and file path for tracking
