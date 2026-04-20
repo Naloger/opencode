@@ -12,11 +12,11 @@ const parameters = z.object({
 })
 
 function trim(input: string) {
-  return input.trim().replace(/^['\"]+|['\"]+$/g, "")
+  return input.trim().replace(/^['"]+|['"]+$/g, "")
 }
 
 function key(input: string) {
-  const hit = trim(input).match(/^\[?image\s+(\d+)\]?$/i)
+  const hit = trim(input).match(/^\[?image\s+(\d+)]?$/i)
   if (!hit) return
   return `image ${hit[1]}`
 }
@@ -34,7 +34,7 @@ function pick(input: string, msgs: Tool.Context["messages"]) {
       const src = part.source
       if (src?.type !== "file") continue
 
-      const tag = trim(src.text.value).replace(/^\[|\]$/g, "").toLowerCase()
+      const tag = trim(src.text.value).replace(/^\[|]$/g, "").toLowerCase()
       if (ref && tag === ref) return src.path
 
       if (!ref && trim(src.text.value).toLowerCase() === raw.toLowerCase()) return src.path

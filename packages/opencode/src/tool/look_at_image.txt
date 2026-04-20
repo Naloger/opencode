@@ -24,6 +24,7 @@ Inspect an image file by loading it from the local filesystem and attaching it a
 - **Reference support:** You can pass a recent session reference like `Image 1` or `[Image 1]`; the tool resolves it to the underlying local file path when available.
 - **Use read tool for text:** For text documents or PDFs, use the `read` tool instead.
 - **Parallel loading:** Call this tool multiple times in parallel to inspect many images at once.
+- **⚠️ Image limit per turn:** When analyzing multiple images, load **no more than 3 images per tool call turn**. Loading more than 3 images causes the model to lose previous context and reasoning. For 4+ images, split the analysis across multiple sequential turns.
 
 ---
 
@@ -35,7 +36,7 @@ Inspect an image file by loading it from the local filesystem and attaching it a
 ```
 
 **Multiple images (parallel):**
-Call the tool 2–3 times with different paths; the model will see all attachments together.
+Call the tool 2–3 times in parallel with different paths; the model will see all attachments together. Do NOT exceed 3 images per turn to preserve context.
 
 ---
 
@@ -72,7 +73,9 @@ When asking the model to inspect an image, be specific about what you want:
 
 - Always use absolute paths
 - Request permission before reading (automatic)
-- Call in parallel when analyzing multiple images
+- **Max 3 images per tool call turn** — exceeding this limit causes context loss and reasoning failures
+- For 4+ images: Split analysis across multiple sequential turns (turn 1: images 1–3, turn 2: images 4–6, etc.)
+- Call in parallel when analyzing multiple images (up to 3 at a time)
 - Combine with other tools: use `glob` to find images, `bash` to batch-process them
 - One image per call (for clarity); combine messages to discuss multiple images
 
